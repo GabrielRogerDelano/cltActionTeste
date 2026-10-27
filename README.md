@@ -1,16 +1,41 @@
-# React + Vite
+## Como rodar o projeto localmente
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Siga o passo a passo abaixo para configurar e executar o projeto em sua máquina:
 
-Currently, two official plugins are available:
+### 1. Baixar o projeto
+Escolha uma das opções abaixo:
+* **Via terminal:** Clone o repositório executando:
+  ```bash
+  git clone https://github.com/GabrielRogerDelano/Clt-action/
+  ```
+* **Via ZIP:** Baixe o arquivo `.ZIP` direto do GitHub e extraia os arquivos.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### 2. Abrir a pasta
+Entre na pasta do projeto pelo terminal:
+```bash
+cd Clt-action
+```
 
-## React Compiler
+### 3. Instalar as dependências
+> ⚠️ **Requisito:** Você precisa ter o [Node.js](https://nodejs.org) instalado na máquina.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Abra o terminal na raiz do projeto e instale as bibliotecas necessárias executando:
+```bash
+npm install
+```
+*(Caso utilize o Yarn, execute apenas `yarn`)*
 
-## Expanding the ESLint configuration
+### 4. Iniciar o projeto
+Para rodar o projeto em modo de desenvolvimento, execute:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run dev
+```
+*(Se o projeto foi feito com Create React App, utilize `npm start`)*
+
+### 5. Criar uma nova branch para trabalhar
+Antes de fazer alterações no código, crie e mude para uma nova branch:
+```bash
+git checkout -b nome-da-sua-branch (pode ser seu nome)
+```
+*(Se fizer alguma mudaça e quiser enviar, coloquena sua branch)*
