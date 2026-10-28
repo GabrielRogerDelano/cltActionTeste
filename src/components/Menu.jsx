@@ -1,23 +1,24 @@
-const ITENS = [
-  { id: 'cliente', label: '👤 Cadastro Cliente' },
-  { id: 'venda', label: '🛒 Serviço / Venda' },
-  { id: 'manifestacao', label: '📝 Manifestação' },
-  { id: 'relatorios', label: '📊 Relatórios' },
-  { id: 'marketing', label: '📢 Marketing' },
-]
-
 export default function Menu({ atual, onSelect }) {
   return (
-    <nav className="menu">
-      {ITENS.map((it) => (
-        <button
-          key={it.id}
-          className={atual === it.id ? 'active' : ''}
-          onClick={() => onSelect(it.id)}
-        >
-          {it.label}
-        </button>
-      ))}
+    <nav>
+      <button
+        className={atual === 'cadastros' ? 'active' : ''}
+        onClick={() => onSelect('cadastros')}
+      >
+        📝 Entrada & Formulários
+      </button>
+      <button
+        className={atual === 'marketing' ? 'active' : ''}
+        onClick={() => onSelect('marketing')}
+      >
+        🎯 Automação Marketing
+      </button>
+      <button
+        className={atual === 'relatorios' ? 'active' : ''}
+        onClick={() => onSelect('relatorios')}
+      >
+        📊 Relatório Ouvidoria
+      </button>
     </nav>
-  )
+  );
 }

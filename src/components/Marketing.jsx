@@ -1,68 +1,85 @@
-// export default function Marketing() {
-//     return(
-//         <>
-//             <h1>Marketing</h1>
-//         </>
-//     )
-// }
+export default function Marketing({ clientes }) {
+  const aniversariantesDoMes = clientes.filter(c => {
+    if (!c.dataNasc) return false;
+    const mesNasc = Number(c.dataNasc.split('-')[1]);
+    const mesAtual = new Date().getMonth() + 1;
+    return mesNasc === mesAtual && (c.mktEmail || c.mktWhats);
+  });
 
-import { load } from '../data/storage.js'
-
-export default function Marketing() {
-  const clientes = load('clientes')
-  const hoje = new Date()
-  const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0')
-
-  const aniversariantes = clientes.filter(
-    (c) => c.nascimento && c.nascimento.slice(5, 7) === mesAtual
-  )
-
-  // Segmentação simplificada: clientes que autorizaram e-mail
-  const autorizadosEmail = clientes.filter((c) => c.autorizaEmail)
+  const clientesPorPreferencia = (tipo) =>
+    clientes.filter(
+      c => c.preferencia === tipo && (c.mktEmail || c.mktWhats || c.mktLigacao)
+    );
 
   return (
-    <div className="card">
-      <h2>Marketing Direto</h2>
+    <div className="view-card">
+      <h2>🎯 Módulo CLI-action Marketing (Retenção)</h2>
+      <p className="subtitle">Simulador de gatilhos automáticos com base no perfil e consentimento LGPD dos clientes:</p>
 
-      <h3>🎂 Aniversariantes do mês</h3>
-      {aniversariantes.length === 0 && <p>Nenhum aniversariante este mês.</p>}
-      <table>
-        <thead><tr><th>Nome</th><th>E-mail</th><th>Nascimento</th><th>Ação</th></tr></thead>
-        <tbody>
-          {aniversariantes.map((c) => (
-            <tr key={c.id}>
-              <td>{c.nome}</td>
-              <td>{c.email}</td>
-              <td>{c.nascimento}</td>
-              <td>
-                <button className="secondary"
-                  onClick={() => alert(`Mensagem de parabéns enviada para ${c.nome}!`)}>
-                  Enviar parabéns
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="marketing-cards-grid">
+        {/* Gatilho 1: Aniversários */}
+        <div className="marketing-box green">
+          <div className="marketing-box-header">
+            <h3>🎂 Aniversários do Mês</h3>
+            <span className="badge">{aniversariantesDoMes.length} elegíveis</span>
+          </div>
+          <p>Dispara saudações personalizadas e cupons para clientes aniversariantes que autorizaram contato.</p>
 
-      <h3 style={{ marginTop: 24 }}>📢 Clientes com autorização de e-mail ({autorizadosEmail.length})</h3>
-      <table>
-        <thead><tr><th>Nome</th><th>E-mail</th><th>Ação</th></tr></thead>
-        <tbody>
-          {autorizadosEmail.map((c) => (
-            <tr key={c.id}>
-              <td>{c.nome}</td>
-              <td>{c.email}</td>
-              <td>
-                <button className="secondary"
-                  onClick={() => alert(`Promoção enviada para ${c.nome}`)}>
-                  Disparar promoção
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <div className="audience-list">
+            <strong>Público-alvo identificado:</strong>
+            {aniversariantesDoMes.length > 0 ? (
+              <ul>
+                {aniversariantesDoMes.map(c => (
+                  <li key={c.id}>
+                    {c.nome} ({c.dataNasc}) — Canais: {[c.mktEmail && 'E-mail', c.mktWhats && 'WhatsApp'].filter(Boolean).join(', ')}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted">Nenhum aniversariante elegível com autorização neste mês.</p>
+            )}
+          </div>
+
+          <button
+            className="btn-action btn-green"
+            onClick={() => alert(`🎉 Campanha de Aniversário disparada com sucesso para ${aniversariantesDoMes.length} clientes!`)}
+          >
+            Disparar Parabenização
+          </button>
+        </div>
+
+        {/* Gatilho 2: Ofertas Direcionadas */}
+        <div className="marketing-box blue">
+          <div className="marketing-box-header">
+            <h3>🚀 Ofertas Direcionadas por Segmento</h3>
+            <span className="badge">
+              {clientesPorPreferencia('Produtos').length} Produtos | {clientesPorPreferencia('Serviços').length} Serviços
+            </span>
+          </div>
+          <p>Filtra a base de dados por interesse de compra e dispara campanhas sob medida para canais autorizados.</p>
+
+          <div className="audience-list">
+            <strong>Segmentação atual:</strong>
+            <p>📦 <strong>Foco em Produtos:</strong> {clientesPorPreferencia('Produtos').map(c => c.nome).join(', ') || 'Nenhum'}</p>
+            <p>🛠️ <strong>Foco em Serviços:</strong> {clientesPorPreferencia('Serviços').map(c => c.nome).join(', ') || 'Nenhum'}</p>
+          </div>
+
+          <div className="button-group">
+            <button
+              className="btn-action btn-blue"
+              onClick={() => alert(`Campanha de PRODUTOS enviada para ${clientesPorPreferencia('Produtos').length} clientes!`)}
+            >
+              Disparar Campanha de Produtos
+            </button>
+            <button
+              className="btn-action btn-indigo"
+              onClick={() => alert(`Campanha de SERVIÇOS enviada para ${clientesPorPreferencia('Serviços').length} clientes!`)}
+            >
+              Disparar Campanha de Serviços
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-  )
+  );
 }

@@ -1,163 +1,180 @@
-// export default function Manifestacao() {
-//     return(
-//         <>
-//             <h1>Manifestacao</h1>
-//         </>
-//     )
-// }
+import { useState } from 'react';
 
-import { useState } from 'react'
-import { load, inserir, atualizar, novoId } from '../data/storage.js'
+export default function Manifestacao({ clientes, vendas, manifestacoes, setManifestacoes }) {
+  const [formManifestacao, setFormManifestacao] = useState({
+    idCliente: '',
+    tipo: 'Reclamação',
+    meio: 'Telefone',
+    texto: '',
+    classificacao: 'Comportamental',
+    idPedido: '',
+    responsavel: '',
+    autorizadoRetorno: false,
+    termoLgpd: false
+  });
 
-const VAZIO = {
-  clienteId: '', tipo: 'Reclamação', meio: 'Telefone',
-  texto: '', classificacao: 'Comportamental',
-  pedidoId: '', funcionario: '',
-  autorizaRetorno: false, aceitePrivacidade: false,
-}
-
-const DIAS_PRAZO = 5 // úteis — simplificado para dias corridos aqui
-
-export default function Manifestacao() {
-  const clientes = load('clientes')
-  const vendas = load('vendas')
-  const manifestacoes = load('manifestacoes')
-
-  const [form, setForm] = useState(VAZIO)
-  const [msg, setMsg] = useState('')
-
-  const onChange = (e) => {
-    const { name, value, type, checked } = e.target
-    setForm({ ...form, [name]: type === 'checkbox' ? checked : value })
-  }
-
-  const salvar = (e) => {
-    e.preventDefault()
-    if (!form.clienteId) { setMsg('❌ Selecione o cliente.'); return }
-    if (!form.aceitePrivacidade) {
-      setMsg('❌ É necessário aceitar a Política de Privacidade.')
-      return
+  const salvarManifestacao = (e) => {
+    e.preventDefault();
+    if (!formManifestacao.idCliente) {
+      alert('Selecione um cliente para vincular à manifestação!');
+      return;
     }
-    const hoje = new Date()
-    const prazo = new Date(hoje)
-    prazo.setDate(prazo.getDate() + DIAS_PRAZO)
+    if (!formManifestacao.termoLgpd) {
+      alert('É obrigatório obter o consentimento LGPD para registrar a manifestação!');
+      return;
+    }
 
-    inserir('manifestacoes', {
-      id: novoId('M'),
-      ...form,
+    const hoje = new Date().toISOString().split('T')[0];
+    const dataPrazo = new Date();
+    dataPrazo.setDate(dataPrazo.getDate() + 7); // Simulação de 5 dias úteis (7 dias corridos)
+    const prazoFormatado = dataPrazo.toISOString().split('T')[0];
+
+    const nova = {
+      ...formManifestacao,
+      id: manifestacoes.length > 0 ? Math.max(...manifestacoes.map(m => m.id)) + 1 : 501,
+      idCliente: Number(formManifestacao.idCliente),
+      idPedido: formManifestacao.idPedido ? Number(formManifestacao.idPedido) : null,
+      dataRegistro: hoje,
+      dataFinalizacao: '-',
       status: 'Aberto',
-      dataRegistro: hoje.toISOString().slice(0, 10),
-      dataPrazo: prazo.toISOString().slice(0, 10),
-      dataFinalizacao: null,
-    })
-    setMsg('✅ Manifestação registrada (prazo de 5 dias).')
-    setForm(VAZIO)
-  }
+      prazo: prazoFormatado
+    };
 
-  const avancarStatus = (id, atual) => {
-    const fluxo = { Aberto: 'Em tratamento', 'Em tratamento': 'Finalizado' }
-    const proximo = fluxo[atual]
-    if (!proximo) return
-    atualizar('manifestacoes', id, {
-      status: proximo,
-      dataFinalizacao: proximo === 'Finalizado'
-        ? new Date().toISOString().slice(0, 10) : null,
-    })
-    // força re-render
-    setForm({ ...form })
-  }
-
+    setManifestacoes([...manifestacoes, nova]);
+    alert(`Manifestação registrada sob o Protocolo #${nova.id}`);
+    setFormManifestacao({
+      idCliente: '',
+      tipo: 'Reclamação',
+      meio: 'Telefone',
+      texto: '',
+      classificacao: 'Comportamental',
+      idPedido: '',
+      responsavel: '',
+      autorizadoRetorno: false,
+      termoLgpd: false
+    });
+  };
 
   return (
-    <div className="card">
-      <h2>Formulário de Manifestação</h2>
-      <form onSubmit={salvar}>
-        <div className="grid">
-          <div><label>Cliente</label>
-            <select name="clienteId" value={form.clienteId} onChange={onChange} required>
-              <option value="">Selecione…</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome} — {c.cpf}</option>
+    <div className="view-card full-width">
+      <h2>Formulário Único de Manifestação (SAC / Ouvidoria)</h2>
+      <form onSubmit={salvarManifestacao} className="form-grid">
+        <div className="form-group">
+          <label>Cliente</label>
+          <select
+            required
+            value={formManifestacao.idCliente}
+            onChange={e => setFormManifestacao({ ...formManifestacao, idCliente: e.target.value, idPedido: '' })}
+          >
+            <option value="">-- Selecione o Cliente --</option>
+            {clientes.map(c => (
+              <option key={c.id} value={c.id}>
+                ID #{c.id} - {c.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Tipo de Manifestação</label>
+          <select
+            value={formManifestacao.tipo}
+            onChange={e => setFormManifestacao({ ...formManifestacao, tipo: e.target.value })}
+          >
+            <option value="Reclamação">Reclamação</option>
+            <option value="Elogio">Elogio</option>
+            <option value="Sugestão">Sugestão</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Meio Utilizado</label>
+          <select
+            value={formManifestacao.meio}
+            onChange={e => setFormManifestacao({ ...formManifestacao, meio: e.target.value })}
+          >
+            <option value="Telefone">Telefone</option>
+            <option value="E-mail">E-mail</option>
+            <option value="Redes Sociais">Redes Sociais</option>
+            <option value="WhatsApp">WhatsApp</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Classificação</label>
+          <select
+            value={formManifestacao.classificacao}
+            onChange={e => setFormManifestacao({ ...formManifestacao, classificacao: e.target.value })}
+          >
+            <option value="Comportamental">Comportamental</option>
+            <option value="Sistêmico">Sistêmico</option>
+            <option value="Estrutural">Estrutural</option>
+            <option value="Produto">Produto</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Vincular ID do Pedido / Venda (Opcional)</label>
+          <select
+            value={formManifestacao.idPedido}
+            onChange={e => setFormManifestacao({ ...formManifestacao, idPedido: e.target.value })}
+          >
+            <option value="">-- Nenhum --</option>
+            {vendas
+              .filter(v => v.idCliente === Number(formManifestacao.idCliente))
+              .map(v => (
+                <option key={v.id} value={v.id}>
+                  Venda #{v.id} - {v.produto} (R$ {v.valor})
+                </option>
               ))}
-            </select></div>
-          <div><label>Tipo</label>
-            <select name="tipo" value={form.tipo} onChange={onChange}>
-              <option>Elogio</option><option>Sugestão</option><option>Reclamação</option>
-            </select></div>
-          <div><label>Meio utilizado</label>
-            <select name="meio" value={form.meio} onChange={onChange}>
-              <option>Telefone</option><option>E-mail</option>
-              <option>Redes sociais</option><option>WhatsApp</option>
-            </select></div>
-          <div><label>Classificação</label>
-            <select name="classificacao" value={form.classificacao} onChange={onChange}>
-              <option>Comportamental</option><option>Sistêmico</option>
-              <option>Estrutural</option><option>Produto</option>
-            </select></div>
-          <div><label>Funcionário responsável</label>
-            <input name="funcionario" value={form.funcionario} onChange={onChange} /></div>
-          {(form.classificacao === 'Produto') && (
-            <div><label>ID do pedido/venda</label>
-              <select name="pedidoId" value={form.pedidoId} onChange={onChange}>
-                <option value="">Selecione…</option>
-                {vendas.map((v) => <option key={v.id} value={v.id}>{v.id}</option>)}
-              </select></div>
-          )}
+          </select>
         </div>
 
-        <div style={{ marginTop: 12 }}>
-          <label>Descrição (problema, sugestão ou elogio)</label>
-          <textarea name="texto" value={form.texto} onChange={onChange} required />
+        <div className="form-group">
+          <label>Gerente Responsável</label>
+          <input
+            type="text"
+            required
+            placeholder="Gerente que fará o acompanhamento"
+            value={formManifestacao.responsavel}
+            onChange={e => setFormManifestacao({ ...formManifestacao, responsavel: e.target.value })}
+          />
         </div>
 
-        <div className="checkbox-line">
-          <input type="checkbox" name="autorizaRetorno" checked={form.autorizaRetorno} onChange={onChange} />
-          <span>Autorizo retorno por e-mail/telefone/WhatsApp</span>
-        </div>
-        <div className="checkbox-line">
-          <input type="checkbox" name="aceitePrivacidade" checked={form.aceitePrivacidade} onChange={onChange} />
-          <span>Li e aceito a Política de Privacidade — dados usados somente para tratar esta manifestação.</span>
+        <div className="form-group full-width">
+          <label>Texto da Manifestação</label>
+          <textarea
+            rows="3"
+            required
+            placeholder="Relato detalhado da manifestação do cliente..."
+            value={formManifestacao.texto}
+            onChange={e => setFormManifestacao({ ...formManifestacao, texto: e.target.value })}
+          />
         </div>
 
-        <button className="primary" type="submit">Registrar Manifestação</button>
-        {msg && <p className="msg">{msg}</p>}
+        <div className="lgpd-section full-width">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={formManifestacao.autorizadoRetorno}
+              onChange={e => setFormManifestacao({ ...formManifestacao, autorizadoRetorno: e.target.checked })}
+            />
+            Autorizar recebimento de retorno (E-mail, Telefone ou WhatsApp)
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={formManifestacao.termoLgpd}
+              onChange={e => setFormManifestacao({ ...formManifestacao, termoLgpd: e.target.checked })}
+            />
+            <strong>LGPD:</strong> Consentimento do cliente para uso exclusivo dos dados para tratar esta manifestação.
+          </label>
+        </div>
+
+        <button type="submit" className="btn-submit full-width">
+          Registrar Ocorrência (Prazo Padrão: 5 Dias Úteis)
+        </button>
       </form>
-
-      <h3 style={{ marginTop: 24 }}>Manifestações ({manifestacoes.length})</h3>
-      <table>
-        <thead><tr>
-          <th>ID</th><th>Cliente</th><th>Tipo</th><th>Status</th>
-          <th>Registro</th><th>Prazo</th><th>Finalização</th><th>Ação</th>
-        </tr></thead>
-        <tbody>
-          {manifestacoes.map((m) => {
-            const cli = clientes.find((c) => c.id === m.clienteId)
-            return (
-              <tr key={m.id}>
-                <td>{m.id}</td>
-                <td>{cli?.nome || '-'}</td>
-                <td>{m.tipo}</td>
-                <td>
-                  <span className={`badge ${m.status.toLowerCase().replace(' ', '')}`}>
-                    {m.status}
-                  </span>
-                </td>
-                <td>{m.dataRegistro}</td>
-                <td>{m.dataPrazo}</td>
-                <td>{m.dataFinalizacao || '—'}</td>
-                <td>
-                  {m.status !== 'Finalizado' && (
-                    <button className="secondary"
-                      onClick={() => avancarStatus(m.id, m.status)}>
-                      Avançar
-                    </button>
-                  )}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
     </div>
-  )
+  );
 }
