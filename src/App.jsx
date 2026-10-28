@@ -9,9 +9,9 @@ import Marketing from './components/Marketing.jsx';
 import Relatorios from './components/Relatorios.jsx';
 
 export default function App() {
-  const [telaAtiva, setTelaAtiva] = useState('cadastros');
+  const [tela, setTela] = useState('cliente');
 
-  // Estados que simulam tabelas de um Banco de Dados relacional em memória
+  // Estados compartilhados em memória
   const [clientes, setClientes] = useState([
     {
       id: 1,
@@ -71,48 +71,53 @@ export default function App() {
     }
   ]);
 
+  // Mapeamento dinâmico das telas
+  const telas = {
+    cliente: (
+      <CadastroCliente
+        clientes={clientes}
+        setClientes={setClientes}
+        vendas={vendas}
+      />
+    ),
+    venda: (
+      <CadastroVenda
+        clientes={clientes}
+        vendas={vendas}
+        setVendas={setVendas}
+      />
+    ),
+    manifestacao: (
+      <Manifestacao
+        clientes={clientes}
+        vendas={vendas}
+        manifestacoes={manifestacoes}
+        setManifestacoes={setManifestacoes}
+      />
+    ),
+    marketing: <Marketing clientes={clientes} />,
+    relatorios: (
+      <Relatorios
+        manifestacoes={manifestacoes}
+        setManifestacoes={setManifestacoes}
+        clientes={clientes}
+        vendas={vendas}
+      />
+    )
+  };
+
   return (
     <div className="app-container">
       <header>
-        <h1>CLI-action</h1>
-        <p>Controle Integrado de Atendimento, Ouvidoria e Marketing de Retenção</p>
+        <h1>CLI-action — Satisfação no Atendimento</h1>
+        <p>Automatize, ouça o cliente e transforme percepção em métrica</p>
       </header>
 
-      <Menu atual={telaAtiva} onSelect={setTelaAtiva} />
+      <Menu atual={tela} onSelect={setTela} />
 
-      {telaAtiva === 'cadastros' && (
-        <div className="grid-container">
-          <CadastroCliente
-            clientes={clientes}
-            setClientes={setClientes}
-            vendas={vendas}
-          />
-          <CadastroVenda
-            clientes={clientes}
-            vendas={vendas}
-            setVendas={setVendas}
-          />
-          <Manifestacao
-            clientes={clientes}
-            vendas={vendas}
-            manifestacoes={manifestacoes}
-            setManifestacoes={setManifestacoes}
-          />
-        </div>
-      )}
-
-      {telaAtiva === 'marketing' && (
-        <Marketing clientes={clientes} />
-      )}
-
-      {telaAtiva === 'relatorios' && (
-        <Relatorios
-          manifestacoes={manifestacoes}
-          setManifestacoes={setManifestacoes}
-          clientes={clientes}
-          vendas={vendas}
-        />
-      )}
+      <main className="content-area">
+        {telas[tela]}
+      </main>
     </div>
   );
 }

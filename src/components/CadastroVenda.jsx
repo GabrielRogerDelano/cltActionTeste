@@ -34,7 +34,7 @@ export default function CadastroVenda({ clientes, vendas, setVendas }) {
   };
 
   return (
-    <div className="view-card">
+    <div className="view-card full-width">
       <h2>Formulário Serviço / Venda</h2>
       <form onSubmit={salvarVenda} className="form-grid">
         <div className="form-group full-width">
