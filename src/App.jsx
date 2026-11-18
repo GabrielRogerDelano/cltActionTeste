@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 const formClienteInicial = {
@@ -15,99 +15,19 @@ const formClienteInicial = {
 };
 
 export default function App() {
-  // Navegação Principal entre Módulos
+  // =========================================================================
+  // NAVEGAÇÃO PRINCIPAL E ESTADOS DO BANCO (POSTGRESQL)
+  // =========================================================================
   const [telaAtiva, setTelaAtiva] = useState('cadastros');
-
-  // Sub-navegação para a aba "Entrada & Formulários"
-  // Opções: 'cliente' | 'venda' | 'manifestacao'
   const [subAbaCadastros, setSubAbaCadastros] = useState('cliente');
 
-  // =========================================================================
-  // BANCO DE DADOS EM MEMÓRIA (TABELAS RELACIONAIS)
-  // =========================================================================
-
-  const [clientes, setClientes] = useState([
-    {
-      id: 1,
-      cpf: '12345678900',
-      nome: 'Ana Silva',
-      email: 'ana@email.com',
-      telefone: '11999998888',
-      dataNasc: '1995-10-23',
-      sexo: 'Feminino',
-      mktEmail: true,
-      mktWhats: true,
-      mktLigacao: false,
-      preferencia: 'Produtos'
-    },
-    {
-      id: 2,
-      cpf: '98765432100',
-      nome: 'Carlos Eduardo',
-      email: 'carlos@email.com',
-      telefone: '11988887777',
-      dataNasc: '1988-10-25',
-      sexo: 'Masculino',
-      mktEmail: true,
-      mktWhats: true,
-      mktLigacao: true,
-      preferencia: 'Serviços'
-    }
-  ]);
-
-  const [vendas, setVendas] = useState([
-    {
-      id: 101,
-      idCliente: 1,
-      data: '2026-10-20',
-      produto: 'Notebook Pro',
-      valor: '5200.00',
-      formaPagamento: 'Pix',
-      funcionario: 'Carlos Vendedor'
-    }
-  ]);
-
-  const [manifestacoes, setManifestacoes] = useState([
-    {
-      id: 501,
-      idCliente: 1,
-      dataRegistro: '2026-10-21',
-      dataFinalizacao: '2026-10-25',
-      prazo: '2026-10-28',
-      tipo: 'Reclamação',
-      meio: 'WhatsApp',
-      texto: 'O carregador esquenta muito durante o uso prolongado.',
-      classificacao: 'Produto',
-      idPedido: 101,
-      funcionarioEnvolvido: 'Carlos Vendedor',
-      responsavel: 'Gerente Marcos',
-      parecerGerente: 'Substituição da fonte de alimentação realizada em garantia diretamente na assistência técnica autorizada.',
-      status: 'Finalizado',
-      autorizadoRetorno: true
-    },
-    {
-      id: 502,
-      idCliente: 2,
-      dataRegistro: '2026-10-26',
-      dataFinalizacao: '-',
-      prazo: '2026-11-02',
-      tipo: 'Reclamação',
-      meio: 'Telefone',
-      texto: 'Demora no retorno sobre o orçamento do conserto da placa.',
-      classificacao: 'Comportamental',
-      idPedido: null,
-      funcionarioEnvolvido: 'Felipe Atendente',
-      responsavel: 'Gerente Marcos',
-      parecerGerente: '',
-      status: 'Em Tratamento',
-      autorizadoRetorno: true
-    }
-  ]);
+  const [clientes, setClientes] = useState([]);
+  const [vendas, setVendas] = useState([]);
+  const [manifestacoes, setManifestacoes] = useState([]);
 
   // =========================================================================
-  // ESTADOS DOS FORMULÁRIOS
+  // ESTADOS DOS FORMULÁRIOS E MODAIS
   // =========================================================================
-
   const [formCliente, setFormCliente] = useState(formClienteInicial);
   const [editandoClienteId, setEditandoClienteId] = useState(null);
   const [buscaCliente, setBuscaCliente] = useState('');
@@ -134,7 +54,6 @@ export default function App() {
     termoLgpd: false
   });
 
-  // Estado para o Modal de Parecer do Gerente (Finalização)
   const [modalParecer, setModalParecer] = useState({
     aberto: false,
     manifestacaoId: null,
@@ -142,11 +61,45 @@ export default function App() {
     textoParecer: ''
   });
 
-  // =========================================================================
-  // CRUD DE CLIENTES
-  // =========================================================================
+    useEffect(() => {
+    fetch('http://localhost:3001/api/clientes')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setClientes(data);
+        } else {
+          console.error('Erro na API de clientes:', data);
+        }
+      })
+      .catch((err) => console.error('Erro ao buscar clientes:', err));
 
-  const salvarCliente = (e) => {
+    fetch('http://localhost:3001/api/vendas')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setVendas(data);
+        } else {
+          console.error('Erro na API de vendas:', data);
+        }
+      })
+      .catch((err) => console.error('Erro ao buscar vendas:', err));
+
+    fetch('http://localhost:3001/api/manifestacoes')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setManifestacoes(data);
+        } else {
+          console.error('Erro na API de manifestações:', data);
+        }
+      })
+      .catch((err) => console.error('Erro ao buscar manifestações:', err));
+  }, []);
+
+  // =========================================================================
+  // CRUD DE CLIENTES (CONECTADO AO POSTGRESQL)
+  // =========================================================================
+  const salvarCliente = async (e) => {
     e.preventDefault();
 
     const cpfLimpo = formCliente.cpf.replace(/\D/g, '');
@@ -159,24 +112,38 @@ export default function App() {
       return;
     }
 
-    if (editandoClienteId) {
-      setClientes(clientes.map(c =>
-        c.id === editandoClienteId ? { ...formCliente, id: editandoClienteId } : c
-      ));
-      alert('Cadastro do cliente atualizado com sucesso!');
-      setEditandoClienteId(null);
-    } else {
-      const novo = {
-        ...formCliente,
-        id: clientes.length > 0 ? Math.max(...clientes.map(c => c.id)) + 1 : 1
-      };
-      setClientes([...clientes, novo]);
-      alert('Cliente cadastrado com sucesso!');
-    }
+    try {
+      if (editandoClienteId) {
+        // Atualização (PUT)
+        const response = await fetch(`http://localhost:3001/api/clientes/${editandoClienteId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formCliente),
+        });
+        const clienteAtualizado = await response.json();
+        setClientes(clientes.map(c => (c.id === editandoClienteId ? clienteAtualizado : c)));
+        alert('Cadastro do cliente atualizado com sucesso!');
+        setEditandoClienteId(null);
+      } else {
+        // Novo Cadastro (POST)
+        const response = await fetch('http://localhost:3001/api/clientes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formCliente),
+        });
+        const novoCliente = await response.json();
+        setClientes([...clientes, novoCliente]);
+        alert('Cliente cadastrado com sucesso!');
+      }
 
-    setFormCliente(formClienteInicial);
+      setFormCliente(formClienteInicial);
+    } catch (err) {
+      console.error('Erro ao salvar cliente:', err);
+      alert('Erro ao comunicar com o servidor.');
+    }
   };
 
+  //
   const iniciarEdicao = (cli) => {
     setEditandoClienteId(cli.id);
     setFormCliente({
@@ -199,7 +166,8 @@ export default function App() {
     setFormCliente(formClienteInicial);
   };
 
-  const excluirCliente = (id) => {
+  // 
+  const excluirCliente = async (id) => {
     const comprasDoCliente = vendas.filter(v => v.idCliente === id);
     const manifestacoesDoCliente = manifestacoes.filter(m => m.idCliente === id);
 
@@ -212,51 +180,66 @@ export default function App() {
     }
 
     if (window.confirm('Tem certeza de que deseja remover este cliente permanentemente?')) {
-      setClientes(clientes.filter(c => c.id !== id));
-      if (editandoClienteId === id) {
-        cancelarEdicao();
+      try {
+        await fetch(`http://localhost:3001/api/clientes/${id}`, {
+          method: 'DELETE',
+        });
+        setClientes(clientes.filter(c => c.id !== id));
+        if (editandoClienteId === id) {
+          cancelarEdicao();
+        }
+        alert('Cliente excluído com sucesso!');
+      } catch (err) {
+        console.error('Erro ao excluir cliente:', err);
+        alert('Erro ao excluir cliente no banco de dados.');
       }
-      alert('Cliente excluído com sucesso!');
     }
   };
+
 
   const clientesFiltrados = clientes.filter(c =>
     c.nome.toLowerCase().includes(buscaCliente.toLowerCase()) ||
     c.cpf.includes(buscaCliente)
   );
 
-  // =========================================================================
-  // VENDAS / SERVIÇOS EFETIVADOS
-  // =========================================================================
-
-  const salvarVenda = (e) => {
+  // salvando vendas diretamente no banco de dados PostgreSQL
+  const salvarVenda = async (e) => {
     e.preventDefault();
     if (!formVenda.idCliente) {
       alert('Selecione um cliente para vincular à venda!');
       return;
     }
-    const nova = {
-      ...formVenda,
-      id: vendas.length > 0 ? Math.max(...vendas.map(v => v.id)) + 1 : 101,
-      idCliente: Number(formVenda.idCliente)
-    };
-    setVendas([...vendas, nova]);
-    alert('Venda/Serviço registrado com sucesso!');
-    setFormVenda({
-      idCliente: '',
-      produto: '',
-      valor: '',
-      formaPagamento: 'Pix',
-      funcionario: '',
-      data: ''
-    });
+
+    try {
+      const response = await fetch('http://localhost:3001/api/vendas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formVenda,
+          idCliente: Number(formVenda.idCliente)
+        }),
+      });
+      const novaVenda = await response.json();
+      setVendas([...vendas, novaVenda]);
+      alert('Venda/Serviço registrado com sucesso!');
+      setFormVenda({
+        idCliente: '',
+        produto: '',
+        valor: '',
+        formaPagamento: 'Pix',
+        funcionario: '',
+        data: ''
+      });
+    } catch (err) {
+      console.error('Erro ao salvar venda:', err);
+      alert('Erro ao registrar venda no banco de dados.');
+    }
   };
 
   // =========================================================================
-  // MANIFESTAÇÕES (SAC / OUVIDORIA)
+  // MANIFESTAÇÕES (SAC / OUVIDORIA) - CONECTADO AO POSTGRESQL
   // =========================================================================
 
-  // Preenchimento inteligente ao vincular ID do pedido
   const handleVincularPedido = (idPedidoVal) => {
     let funcEnvolvido = formManifestacao.funcionarioEnvolvido;
     if (idPedidoVal) {
@@ -272,7 +255,7 @@ export default function App() {
     });
   };
 
-  const salvarManifestacao = (e) => {
+  const salvarManifestacao = async (e) => {
     e.preventDefault();
     if (!formManifestacao.idCliente) {
       alert('Selecione um cliente para vincular à manifestação!');
@@ -296,37 +279,60 @@ export default function App() {
     dataPrazo.setDate(dataPrazo.getDate() + 7);
     const prazoFormatado = dataPrazo.toISOString().split('T')[0];
 
-    const nova = {
+    const payload = {
       ...formManifestacao,
-      id: manifestacoes.length > 0 ? Math.max(...manifestacoes.map(m => m.id)) + 1 : 501,
       idCliente: Number(formManifestacao.idCliente),
       idPedido: formManifestacao.idPedido ? Number(formManifestacao.idPedido) : null,
       funcionarioEnvolvido: formManifestacao.funcionarioEnvolvido.trim(),
       responsavel: formManifestacao.responsavel.trim(),
-      parecerGerente: '',
       dataRegistro: hoje,
-      dataFinalizacao: '-',
-      status: 'Em Tratamento',
+      status: 'Em Aberto', // <--- Novo estado inicial
       prazo: prazoFormatado
     };
 
-    setManifestacoes([...manifestacoes, nova]);
-    alert(`Manifestação registrada sob o Protocolo #${nova.id} com status 'Em Tratamento'!`);
-    setFormManifestacao({
-      idCliente: '',
-      tipo: 'Reclamação',
-      meio: 'Telefone',
-      texto: '',
-      classificacao: 'Comportamental',
-      idPedido: '',
-      funcionarioEnvolvido: '',
-      responsavel: '',
-      autorizadoRetorno: false,
-      termoLgpd: false
-    });
+    try {
+      const response = await fetch('http://localhost:3001/api/manifestacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const nova = await response.json();
+
+      setManifestacoes([...manifestacoes, nova]);
+      alert(`Manifestação registrada sob o Protocolo #${nova.id} com status 'Em Aberto'!`);
+      setFormManifestacao({
+        idCliente: '',
+        tipo: 'Reclamação',
+        meio: 'Telefone',
+        texto: '',
+        classificacao: 'Comportamental',
+        idPedido: '',
+        funcionarioEnvolvido: '',
+        responsavel: '',
+        autorizadoRetorno: false,
+        termoLgpd: false
+      });
+    } catch (err) {
+      console.error('Erro ao registrar manifestação:', err);
+      alert('Erro ao comunicar com o servidor.');
+    }
   };
 
-  // Abrir o modal para o Gerente registrar o parecer de finalização
+  // Nova função para mudar o status de 'Em Aberto' para 'Em Tratamento'
+  const iniciarTratamento = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/manifestacoes/${id}/iniciar`, {
+        method: 'PATCH',
+      });
+      const atualizada = await response.json();
+      setManifestacoes(manifestacoes.map(m => (m.id === id ? atualizada : m)));
+      alert(`Protocolo #${id} agora está 'Em Tratamento'!`);
+    } catch (err) {
+      console.error('Erro ao iniciar tratamento:', err);
+      alert('Erro ao atualizar status no banco de dados.');
+    }
+  };
+
   const abrirModalFinalizar = (m) => {
     setModalParecer({
       aberto: true,
@@ -336,8 +342,7 @@ export default function App() {
     });
   };
 
-  // Salvar Parecer do Gerente e mudar status para 'Finalizado'
-  const confirmarFinalizacaoComParecer = (e) => {
+  const confirmarFinalizacaoComParecer = async (e) => {
     e.preventDefault();
     if (!modalParecer.textoParecer.trim()) {
       alert('O parecer técnico do gerente é obrigatório para finalizar a manifestação!');
@@ -350,21 +355,30 @@ export default function App() {
 
     const hoje = new Date().toISOString().split('T')[0];
 
-    setManifestacoes(manifestacoes.map(m =>
-      m.id === modalParecer.manifestacaoId
-        ? {
-            ...m,
-            status: 'Finalizado',
-            dataFinalizacao: hoje,
-            responsavel: modalParecer.gerenteNome.trim() || m.responsavel,
-            parecerGerente: modalParecer.textoParecer.trim()
-          }
-        : m
-    ));
+    try {
+      const response = await fetch(`http://localhost:3001/api/manifestacoes/${modalParecer.manifestacaoId}/finalizar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataFinalizacao: hoje,
+          responsavel: modalParecer.gerenteNome.trim(),
+          parecerGerente: modalParecer.textoParecer.trim()
+        }),
+      });
+      const finalizada = await response.json();
 
-    alert(`Manifestação #${modalParecer.manifestacaoId} finalizada com sucesso! Parecer registrado no relatório.`);
-    setModalParecer({ aberto: false, manifestacaoId: null, gerenteNome: '', textoParecer: '' });
+      setManifestacoes(manifestacoes.map(m =>
+        m.id === modalParecer.manifestacaoId ? finalizada : m
+      ));
+
+      alert(`Manifestação #${modalParecer.manifestacaoId} finalizada com sucesso! Parecer registrado no relatório.`);
+      setModalParecer({ aberto: false, manifestacaoId: null, gerenteNome: '', textoParecer: '' });
+    } catch (err) {
+      console.error('Erro ao finalizar manifestação:', err);
+      alert('Erro ao salvar parecer no banco de dados.');
+    }
   };
+
 
   // =========================================================================
   // MÓDULO MARKETING
@@ -410,7 +424,7 @@ export default function App() {
       </nav>
 
       {/* ========================================================
-          TELA 1: ENTRADA & FORMULÁRIOS (COM SUB-ABAS)
+          TELA 1: ENTRADAS & FORMULÁRIOS (COM SUB-ABAS)
          ======================================================== */}
       {telaAtiva === 'cadastros' && (
         <div className="modulo-cadastros-container">
@@ -669,9 +683,10 @@ export default function App() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan="8" style={{ textAlign: 'center', padding: '24px' }} className="text-muted">
-                            Nenhum cliente encontrado com os critérios de busca.
+                          <td colSpan="8" style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>
+                          Nenhum cliente encontrado com os critérios de busca.
                           </td>
+
                         </tr>
                       )}
                     </tbody>
@@ -952,7 +967,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ========================================================
+      {/* {/* ========================================================
           TELA 2: AUTOMAÇÃO DE MARKETING
          ======================================================== */}
       {telaAtiva === 'marketing' && (
@@ -1025,9 +1040,9 @@ export default function App() {
         </div>
       )}
 
-      {/* ========================================================
-          TELA 3: RELATÓRIO DE AUDITORIA E OUVIDORIA
-         ======================================================== */}
+      {/*=======================================================
+      TELA 3: RELATÓRIO DE AUDITORIA E OUVIDORIA
+      ======================================================== */}
       {telaAtiva === 'relatorios' && (
         <div className="view-card">
           <div className="report-header">
@@ -1039,8 +1054,15 @@ export default function App() {
             </div>
             <div className="metrics-summary">
               <span className="metric-pill">Total: {manifestacoes.length}</span>
-              <span className="metric-pill warn">Em Tratamento: {manifestacoes.filter(m => m.status === 'Em Tratamento').length}</span>
-              <span className="metric-pill ok">Finalizadas: {manifestacoes.filter(m => m.status === 'Finalizado').length}</span>
+              <span className="metric-pill open">
+                Em Aberto: {manifestacoes.filter(m => m.status === 'Em Aberto').length}
+              </span>
+              <span className="metric-pill warn">
+                Em Tratamento: {manifestacoes.filter(m => m.status === 'Em Tratamento').length}
+              </span>
+              <span className="metric-pill ok">
+                Finalizadas: {manifestacoes.filter(m => m.status === 'Finalizado').length}
+              </span>
             </div>
           </div>
 
@@ -1090,17 +1112,26 @@ export default function App() {
                         <div className="sub-text"><strong>Conclusão:</strong> {m.dataFinalizacao}</div>
                       </td>
                       <td>
-                        <span className={`status-pill ${m.status.toLowerCase().replace(' ', '-')}`}>
+                        {/* Gera automaticamente: status-pill em-aberto | em-tratamento | finalizado */}
+                        <span className={`status-pill ${m.status.toLowerCase().replace(/\s+/g, '-')}`}>
                           {m.status}
                         </span>
                       </td>
                       <td>
-                        {m.status === 'Finalizado' ? (
-                          <div className="parecer-conclusivo-box">
-                            <span className="parecer-header">✅ Parecer Registrado ({m.responsavel}):</span>
-                            <p className="parecer-texto">"{m.parecerGerente}"</p>
+                        {m.status === 'Em Aberto' && (
+                          <div className="action-buttons">
+                            <button
+                              type="button"
+                              className="btn-table btn-iniciar"
+                              title="Iniciar análise desta ocorrência"
+                              onClick={() => iniciarTratamento(m.id)}
+                            >
+                              ▶️ Iniciar Tratamento
+                            </button>
                           </div>
-                        ) : (
+                        )}
+
+                        {m.status === 'Em Tratamento' && (
                           <div className="action-buttons">
                             <button
                               type="button"
@@ -1112,6 +1143,13 @@ export default function App() {
                             </button>
                           </div>
                         )}
+
+                        {m.status === 'Finalizado' && (
+                          <div className="parecer-conclusivo-box">
+                            <span className="parecer-header">✅ Parecer Registrado ({m.responsavel}):</span>
+                            <p className="parecer-texto">"{m.parecerGerente}"</p>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1121,7 +1159,6 @@ export default function App() {
           </div>
         </div>
       )}
-
       {/* ========================================================
           MODAL DE EMISSÃO DE PARECER DO GERENTE (MÁX. 250 CHARS)
          ======================================================== */}
@@ -1193,3 +1230,4 @@ export default function App() {
     </div>
   );
 }
+

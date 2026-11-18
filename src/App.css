@@ -726,6 +726,31 @@ nav button.active {
 .btn-danger:hover {
   background: #dc2626;
 }
+/* Pill de resumo no topo para "Em Aberto" */
+.metric-pill.open {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+/* Badge de status na tabela para "Em Aberto" */
+.status-pill.em-aberto {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #f87171;
+}
+
+/* Botão para iniciar o tratamento */
+.btn-table.btn-iniciar {
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+}
+
+.btn-table.btn-iniciar:hover {
+  background-color: #1d4ed8;
+}
+
 
 /* ==========================================================================
    MODAL DE REGISTRO DE PARECER DO GERENTE
