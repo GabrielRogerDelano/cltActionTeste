@@ -14,6 +14,23 @@ const formClienteInicial = {
   preferencia: 'Produtos'
 };
 
+function validarCPF(cpf) {
+  const numeros = cpf.replace(/\D/g, '');
+  if (numeros.length !== 11 || /^(\d)\1+$/.test(numeros)) return false;
+
+  let soma = 0;
+  for (let i = 0; i < 9; i++) soma += parseInt(numeros.charAt(i)) * (10 - i);
+  let resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  if (resto !== parseInt(numeros.charAt(9))) return false;
+
+  soma = 0;
+  for (let i = 0; i < 10; i++) soma += parseInt(numeros.charAt(i)) * (11 - i);
+  resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  return resto === parseInt(numeros.charAt(10));
+}
+
 export default function App() {
   // =========================================================================
   // NAVEGAÇÃO PRINCIPAL E ESTADOS DO BANCO (POSTGRESQL)
@@ -29,8 +46,34 @@ export default function App() {
   // ESTADOS DOS FORMULÁRIOS E MODAIS
   // =========================================================================
   const [formCliente, setFormCliente] = useState(formClienteInicial);
+  const [erroCliente, setErroCliente] = useState('');
   const [editandoClienteId, setEditandoClienteId] = useState(null);
   const [buscaCliente, setBuscaCliente] = useState('');
+
+  // Bloqueia letras/símbolos (como o *) e formata o CPF
+  const handleCpfChange = (e) => {
+    let valor = e.target.value.replace(/\D/g, '');
+    if (valor.length > 11) valor = valor.slice(0, 11);
+
+    valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+    valor = valor.replace(/(\d{3})(\d)/, '$1.$2');
+    valor = valor.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+
+    setFormCliente({ ...formCliente, cpf: valor });
+    if (erroCliente) setErroCliente('');
+  };
+
+  // Bloqueia letras/símbolos e formata o Telefone
+  const handleTelefoneChange = (e) => {
+    let valor = e.target.value.replace(/\D/g, '');
+    if (valor.length > 11) valor = valor.slice(0, 11);
+
+    valor = valor.replace(/^(\d{2})(\d)/g, '($1) $2');
+    valor = valor.replace(/(\d)(\d{4})$/, '$1-$2');
+
+    setFormCliente({ ...formCliente, telefone: valor });
+    if (erroCliente) setErroCliente('');
+  };
 
   const [formVenda, setFormVenda] = useState({
     idCliente: '',
@@ -56,12 +99,9 @@ export default function App() {
 
   const [modalParecer, setModalParecer] = useState({
     aberto: false,
-    manifestacaoId: null,
-    gerenteNome: '',
-    textoParecer: ''
   });
 
-    useEffect(() => {
+  useEffect(() => {
     fetch('http://localhost:3001/api/clientes')
       .then((res) => res.json())
       .then((data) => {
@@ -101,17 +141,38 @@ export default function App() {
   // =========================================================================
   const salvarCliente = async (e) => {
     e.preventDefault();
+    setErroCliente('');
 
+    // 1. Valida formato e dígitos verificadores do CPF
+    if (!validarCPF(formCliente.cpf)) {
+      setErroCliente('CPF inválido. Digite exatamente 11 números válidos (ex: 123.456.789-00).');
+      return;
+    }
+
+    // 2. Valida duplicidade comparando apenas os dígitos (evita conflito com CPFs sem máscara no banco)
     const cpfLimpo = formCliente.cpf.replace(/\D/g, '');
     const cpfDuplicado = clientes.some(
       c => c.cpf.replace(/\D/g, '') === cpfLimpo && c.id !== editandoClienteId
     );
-
     if (cpfDuplicado) {
-      alert('Atenção: Já existe outro cliente cadastrado com este CPF!');
+      setErroCliente('Este CPF já pertence a outro cliente cadastrado.');
       return;
     }
 
+    // 3. Valida telefone
+    if (formCliente.telefone.replace(/\D/g, '').length < 10) {
+      setErroCliente('Telefone inválido. Informe o DDD e o número completo.');
+      return;
+    }
+
+    // 4. Valida data de nascimento futura
+    const hoje = new Date().toISOString().split('T')[0];;
+    if (formCliente.dataNasc > hoje) {
+      setErroCliente('A data de nascimento não pode ser uma data futura.');
+      return;
+    }
+
+    // 5. Envia para o PostgreSQL (Atualização ou Novo Cadastro)
     try {
       if (editandoClienteId) {
         // Atualização (PUT)
@@ -139,12 +200,12 @@ export default function App() {
       setFormCliente(formClienteInicial);
     } catch (err) {
       console.error('Erro ao salvar cliente:', err);
-      alert('Erro ao comunicar com o servidor.');
+      setErroCliente('Erro ao comunicar com o servidor. Tente novamente.');
     }
   };
 
-  //
   const iniciarEdicao = (cli) => {
+    setErroCliente('');
     setEditandoClienteId(cli.id);
     setFormCliente({
       cpf: cli.cpf,
@@ -162,9 +223,11 @@ export default function App() {
   };
 
   const cancelarEdicao = () => {
+    setErroCliente('');
     setEditandoClienteId(null);
     setFormCliente(formClienteInicial);
   };
+
 
   // 
   const excluirCliente = async (id) => {
@@ -467,15 +530,32 @@ export default function App() {
                   )}
                 </div>
 
+                {/* Caixa de Erro Explicativa */}
+                {erroCliente && (
+                  <div style={{
+                    backgroundColor: '#fee2e2',
+                    color: '#991b1b',
+                    padding: '12px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid #f87171',
+                    marginBottom: '16px',
+                    fontWeight: '500'
+                  }}>
+                    ⚠️ <strong>Atenção:</strong> {erroCliente}
+                  </div>
+                )}
+
                 <form onSubmit={salvarCliente} className="form-grid">
                   <div className="form-group">
                     <label>CPF (Chave Única)</label>
                     <input
                       type="text"
+                      inputMode="numeric"
                       required
+                      maxLength={14}
                       placeholder="000.000.000-00"
                       value={formCliente.cpf}
-                      onChange={e => setFormCliente({ ...formCliente, cpf: e.target.value })}
+                      onChange={handleCpfChange}
                     />
                   </div>
 
@@ -505,10 +585,12 @@ export default function App() {
                     <label>Telefone / WhatsApp</label>
                     <input
                       type="tel"
+                      inputMode="numeric"
                       required
+                      maxLength={15}
                       placeholder="(00) 00000-0000"
                       value={formCliente.telefone}
-                      onChange={e => setFormCliente({ ...formCliente, telefone: e.target.value })}
+                      onChange={handleTelefoneChange}
                     />
                   </div>
 
@@ -517,6 +599,7 @@ export default function App() {
                     <input
                       type="date"
                       required
+                      max={new Date().toISOString().split('T')[0]}
                       value={formCliente.dataNasc}
                       onChange={e => setFormCliente({ ...formCliente, dataNasc: e.target.value })}
                     />
@@ -586,156 +669,152 @@ export default function App() {
                     )}
                   </div>
                 </form>
-              </div>
-
-              {/* Gerenciamento de Clientes Cadastrados (CRUD Read / Update / Delete) */}
-              <div className="view-card full-width">
-                <div className="report-header">
-                  <div>
-                    <h2>👥 Gerenciamento de Clientes Cadastrados ({clientes.length})</h2>
-                    <p className="subtitle">Visualize, edite ou exclua clientes respeitando as regras de integridade</p>
+                {/* Gerenciamento de Clientes Cadastrados (CRUD Read / Update / Delete) */}
+                <div className="view-card full-width">
+                  <div className="report-header">
+                    <div>
+                      <h2>👥 Gerenciamento de Clientes Cadastrados ({clientes.length})</h2>
+                      <p className="subtitle">Visualize, edite ou exclua clientes respeitando as regras de integridade</p>
+                    </div>
+                    <div className="search-box">
+                      <input
+                        type="text"
+                        placeholder="🔎 Buscar por Nome ou CPF..."
+                        value={buscaCliente}
+                        onChange={e => setBuscaCliente(e.target.value)}
+                        className="input-search"
+                      />
+                    </div>
                   </div>
-                  <div className="search-box">
-                    <input
-                      type="text"
-                      placeholder="🔎 Buscar por Nome ou CPF..."
-                      value={buscaCliente}
-                      onChange={e => setBuscaCliente(e.target.value)}
-                      className="input-search"
-                    />
-                  </div>
-                </div>
 
-                <div className="table-responsive">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>Nome / CPF</th>
-                        <th>Contatos</th>
-                        <th>Nasc. / Sexo</th>
-                        <th>Foco MKT</th>
-                        <th>Canais Autorizados</th>
-                        <th>Histórico Vinculado</th>
-                        <th>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {clientesFiltrados.length > 0 ? (
-                        clientesFiltrados.map(cli => {
-                          const totalCompras = vendas.filter(v => v.idCliente === cli.id).length;
-                          const totalManifestacoes = manifestacoes.filter(m => m.idCliente === cli.id).length;
-
-                          return (
-                            <tr key={cli.id} className={editandoClienteId === cli.id ? 'row-editing' : ''}>
-                              <td><strong>#{cli.id}</strong></td>
-                              <td>
-                                <strong>{cli.nome}</strong>
-                                <div className="sub-text">CPF: {cli.cpf}</div>
-                              </td>
-                              <td>
-                                <div>{cli.email}</div>
-                                <div className="sub-text">{cli.telefone}</div>
-                              </td>
-                              <td>
-                                <div>{cli.dataNasc}</div>
-                                <div className="sub-text">{cli.sexo}</div>
-                              </td>
-                              <td>
-                                <span className="badge-class">{cli.preferencia}</span>
-                              </td>
-                              <td>
-                                <div className="badges-canais">
-                                  {cli.mktEmail && <span className="mini-badge ok">E-mail</span>}
-                                  {cli.mktWhats && <span className="mini-badge ok">Whats</span>}
-                                  {cli.mktLigacao && <span className="mini-badge ok">Ligação</span>}
-                                  {!cli.mktEmail && !cli.mktWhats && !cli.mktLigacao && (
-                                    <span className="mini-badge none">Nenhum</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td>
-                                <div className="sub-text">🛒 {totalCompras} venda(s)</div>
-                                <div className="sub-text">📢 {totalManifestacoes} manifestação(ões)</div>
-                              </td>
-                              <td>
-                                <div className="action-buttons">
-                                  <button
-                                    type="button"
-                                    className="btn-table btn-warn"
-                                    title="Editar Cliente"
-                                    onClick={() => iniciarEdicao(cli)}
-                                  >
-                                    ✏️ Editar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="btn-table btn-danger"
-                                    title="Excluir Cliente"
-                                    onClick={() => excluirCliente(cli.id)}
-                                  >
-                                    🗑️ Excluir
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
                         <tr>
-                          <td colSpan="8" style={{ color: '#dc2626', fontWeight: '600', textAlign: 'center' }}>
-                          Nenhum cliente encontrado com os critérios de busca.
-                          </td>
-
+                          <th>ID</th>
+                          <th>Nome / CPF</th>
+                          <th>Contatos</th>
+                          <th>Nasc. / Sexo</th>
+                          <th>Foco MKT</th>
+                          <th>Canais Autorizados</th>
+                          <th>Histórico Vinculado</th>
+                          <th>Ações</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {clientesFiltrados.length > 0 ? (
+                          clientesFiltrados.map(cli => {
+                            const totalCompras = vendas.filter(v => v.idCliente === cli.id).length;
+                            const totalManifestacoes = manifestacoes.filter(m => m.idCliente === cli.id).length;
+
+                            return (
+                              <tr key={cli.id} className={editandoClienteId === cli.id ? 'row-editing' : ''}>
+                                <td><strong>#{cli.id}</strong></td>
+                                <td>
+                                  <strong>{cli.nome}</strong>
+                                  <div className="text-muted">CPF: {cli.cpf}</div>
+                                </td>
+                                <td>
+                                  <div>📧 {cli.email}</div>
+                                  <div className="text-muted">📱 {cli.telefone}</div>
+                                </td>
+                                <td>
+                                  <div>{cli.dataNasc}</div>
+                                  <div className="text-muted">{cli.sexo}</div>
+                                </td>
+                                <td>
+                                  <span className="badge-mkt">{cli.preferencia}</span>
+                                </td>
+                                <td>
+                                  <div className="canais-tags">
+                                    {cli.mktEmail && <span className="tag-canal">E-mail</span>}
+                                    {cli.mktWhats && <span className="tag-canal">WhatsApp</span>}
+                                    {cli.mktLigacao && <span className="tag-canal">Ligação</span>}
+                                    {!cli.mktEmail && !cli.mktWhats && !cli.mktLigacao && (
+                                      <span className="text-muted">Nenhum</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>
+                                  <div>🛒 {totalCompras} compra(s)</div>
+                                  <div className="text-muted">📢 {totalManifestacoes} ocorrência(s)</div>
+                                </td>
+                                <td>
+                                  <div className="action-buttons">
+                                    <button
+                                      type="button"
+                                      className="btn-edit"
+                                      onClick={() => iniciarEdicao(cli)}
+                                      title="Editar Cliente"
+                                    >
+                                      ✏️ Editar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-delete"
+                                      onClick={() => excluirCliente(cli.id)}
+                                      title="Excluir Cliente"
+                                    >
+                                      🗑️ Excluir
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
+                              Nenhum cliente encontrado.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
           )}
-
-          {/* SUB-ABA 2: FORMULÁRIO SERVIÇO / VENDA EFETIVADA */}
+          {/* SUB-ABA 2: REGISTRO DE VENDAS E SERVIÇOS */}
           {subAbaCadastros === 'venda' && (
             <div className="sub-aba-content">
               <div className="view-card full-width">
-                <h2>🛒 Formulário de Serviço / Venda Efetivada</h2>
-                <p className="subtitle">Registre uma transação comercial para gerar histórico e vincular garantias</p>
-
+                <h2>🛒 Registro de Venda / Serviço Efetivado</h2>
                 <form onSubmit={salvarVenda} className="form-grid">
-                  <div className="form-group full-width">
-                    <label>Vincular Cliente</label>
+                  <div className="form-group">
+                    <label>Cliente Comprador</label>
                     <select
                       required
                       value={formVenda.idCliente}
                       onChange={e => setFormVenda({ ...formVenda, idCliente: e.target.value })}
                     >
-                      <option value="">-- Escolha o Cliente Cadastrado --</option>
+                      <option value="">-- Selecione o Cliente --</option>
                       {clientes.map(c => (
                         <option key={c.id} value={c.id}>
-                          {c.nome} (CPF: {c.cpf})
+                          ID #{c.id} - {c.nome} (CPF: {c.cpf})
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  <div className="form-group full-width">
-                    <label>Descrição do Produto / Serviço</label>
+                  <div className="form-group">
+                    <label>Produto ou Serviço Adquirido</label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Consultoria em TI, Notebook Pro, Manutenção Preventiva..."
+                      placeholder="Ex: Consultoria, Notebook, Plano Mensal..."
                       value={formVenda.produto}
                       onChange={e => setFormVenda({ ...formVenda, produto: e.target.value })}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Valor Transacionado (R$)</label>
+                    <label>Valor da Transação (R$)</label>
                     <input
                       type="number"
                       step="0.01"
+                      min="0.01"
                       required
                       placeholder="0.00"
                       value={formVenda.valor}
@@ -750,25 +829,26 @@ export default function App() {
                       onChange={e => setFormVenda({ ...formVenda, formaPagamento: e.target.value })}
                     >
                       <option value="Pix">Pix</option>
-                      <option value="Cartão">Cartão</option>
-                      <option value="Boleto">Boleto</option>
+                      <option value="Cartão de Crédito">Cartão de Crédito</option>
+                      <option value="Cartão de Débito">Cartão de Débito</option>
                       <option value="Dinheiro">Dinheiro</option>
+                      <option value="Boleto">Boleto</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label>Funcionário Vendedor / Técnico Executor</label>
+                    <label>Funcionário / Vendedor Responsável</label>
                     <input
                       type="text"
                       required
-                      placeholder="Nome do funcionário que realizou a venda"
+                      placeholder="Nome do vendedor"
                       value={formVenda.funcionario}
                       onChange={e => setFormVenda({ ...formVenda, funcionario: e.target.value })}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Data da Transação</label>
+                    <label>Data da Venda</label>
                     <input
                       type="date"
                       required
@@ -778,7 +858,7 @@ export default function App() {
                   </div>
 
                   <button type="submit" className="btn-submit full-width">
-                    Registrar Serviço / Venda Efetivada
+                    Registrar Venda / Serviço
                   </button>
                 </form>
               </div>
@@ -1230,4 +1310,3 @@ export default function App() {
     </div>
   );
 }
-
